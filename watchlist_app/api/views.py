@@ -1,22 +1,25 @@
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
-from rest_framework import status
 from rest_framework.exceptions import ValidationError
-from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
-# from rest_framework import mixins
-from rest_framework import generics
-from rest_framework import viewsets
+from rest_framework import status
 # from rest_framework.decorators import api_view
+from rest_framework.views import APIView
+from rest_framework import generics
+# from rest_framework import mixins
+from rest_framework import viewsets
+from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
+from rest_framework.throttling import UserRateThrottle, AnonRateThrottle, ScopedRateThrottle
 
 from watchlist_app.api.permissions import IsAdminOrReadOnly, IsReviewUserOrReadOnly
 from watchlist_app.models import WatchList, StreamPlatform, Review
 from watchlist_app.api.serializers import (WatchListSerializer, StreamPlatformSerializer,
                                            ReviewSerializer)
+from watchlist_app.api.throttling import ReviewCreateThrottle, ReviewListThrottle
 
 class ReviewCreate(generics.CreateAPIView):
     serializer_class = ReviewSerializer
     permission_classes = [IsAuthenticated]
+    throttle_classes = [ReviewCreateThrottle]
     
     def get_queryset(self):
         return Review.objects.all()
@@ -46,6 +49,7 @@ class ReviewList(generics.ListAPIView):
     # queryset = Review.objects.all()
     serializer_class = ReviewSerializer
     # permission_classes = [IsAuthenticated]
+    throttle_classes = [ReviewListThrottle, AnonRateThrottle]
     
     def get_queryset(self):
         pk = self.kwargs['pk']
@@ -55,6 +59,8 @@ class ReviewDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = Review.objects.all()
     serializer_class = ReviewSerializer
     permission_classes = [IsReviewUserOrReadOnly]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'review-detail'
 
 
 # class ReviewDetail(mixins.RetrieveModelMixin, generics.GenericAPIView):
