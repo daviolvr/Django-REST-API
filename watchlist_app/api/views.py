@@ -9,12 +9,29 @@ from rest_framework import generics
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.throttling import UserRateThrottle, AnonRateThrottle, ScopedRateThrottle
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import filters
 
 from watchlist_app.api.permissions import IsAdminOrReadOnly, IsReviewUserOrReadOnly
 from watchlist_app.models import WatchList, StreamPlatform, Review
 from watchlist_app.api.serializers import (WatchListSerializer, StreamPlatformSerializer,
                                            ReviewSerializer)
 from watchlist_app.api.throttling import ReviewCreateThrottle, ReviewListThrottle
+
+class UserReview(generics.ListAPIView):
+    # queryset = Review.objects.all()
+    serializer_class = ReviewSerializer
+    # permission_classes = [IsAuthenticated]
+    # throttle_classes = [ReviewListThrottle, AnonRateThrottle]
+    
+    # def get_queryset(self):
+    #     username = self.kwargs['username']
+    #     return Review.objects.filter(review_user__username=username)
+    
+    def get_queryset(self):
+        username = self.request.query_params.get('username', None)
+        return Review.objects.filter(review_user__username=username)
+
 
 class ReviewCreate(generics.CreateAPIView):
     serializer_class = ReviewSerializer
@@ -50,6 +67,8 @@ class ReviewList(generics.ListAPIView):
     serializer_class = ReviewSerializer
     # permission_classes = [IsAuthenticated]
     throttle_classes = [ReviewListThrottle, AnonRateThrottle]
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['review_user__username', 'active']
     
     def get_queryset(self):
         pk = self.kwargs['pk']
@@ -147,6 +166,21 @@ class StreamPlatformDetailAV(APIView):
         platform = StreamPlatform.objects.get(pk=pk)
         platform.delete()
         return Response({'message': 'Platform deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
+
+
+class WatchListGV(generics.ListAPIView):
+    queryset = WatchList.objects.all()
+    serializer_class = WatchListSerializer
+    
+    # filter_backends = [DjangoFilterBackend]
+    # filterset_fields = ['title', 'platform__name']
+    
+    # filter_backends = [filters.SearchFilter]
+    # search_fields = ['title', 'platform__name']
+    
+    filter_backends = [filters.OrderingFilter]
+    ordering_fields = ['avg_rating']
+
 
 class WatchListAV(APIView):
     permission_classes = [IsAdminOrReadOnly]
